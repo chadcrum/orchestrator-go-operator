@@ -7,12 +7,13 @@ program_name=$0
 KNATIVE_VERSION=1.15.8
 
 function usage {
-    echo -e "Usage: ORCHESTRATOR_NAME=ORCHESTRATOR_NAME BROKER_NAME=BROKER_NAME BROKER_NAMESPACE=BROKER_NAMESPACE [KAFKA_REPLICATION_FACTOR=KAFKA_REPLICATION_FACTOR] [ORCHESTRATOR_NAMESPACE=openshift-operators] [BROKER_TYPE=Kafka] [INSTALL_KAFKA_CLUSTER=true] $program_name"
+    echo -e "Usage: WORKFLOW_NAMESPACE=WORKFLOW_NAMESPACE ORCHESTRATOR_NAME=ORCHESTRATOR_NAME BROKER_NAME=BROKER_NAME BROKER_NAMESPACE=BROKER_NAMESPACE [KAFKA_REPLICATION_FACTOR=KAFKA_REPLICATION_FACTOR] [ORCHESTRATOR_NAMESPACE=openshift-operators] [BROKER_TYPE=Kafka] [INSTALL_KAFKA_CLUSTER=true] $program_name"
     echo "  ORCHESTRATOR_NAME                   Name of the installed orchestrator CR"
     echo "  ORCHESTRATOR_NAMESPACE              Optional, namespace in which the orchestrator operator is deployed. Default is openshift-operators"
     echo "  BROKER_NAME                         Name of the broker to install"
     echo "  BROKER_NAMESPACE                    Namespace in which the broker must be installed"
     echo "  BROKER_TYPE                         Optional , type of the broker. Either 'Kafka' or 'in-memory'. Default is: 'Kafka'"
+    echo "  WORKFLOW_NAMESPACE                  Namespace where workflows are installed. Default is: sonataflow-infra"
     echo "  INSTALL_KAFKA_CLUSTER               Optional, if set to true, indicates that Kafka cluster must be installed. Will only be used if BROKER_TYPE is 'Kafka'. Default is: true"
     echo "  KAFKA_REPLICATION_FACTOR            Optional, only used if INSTALL_KAFKA_CLUSTER is set to false and BROKER_TYPE is 'Kafka', provide the replication factor for the Kafka cluster"
     exit 1
@@ -40,6 +41,10 @@ fi
 
 if [[ -z "${BROKER_TYPE}" ]]; then
   BROKER_TYPE=Kafka
+fi
+
+if [[ -z "${WORKFLOW_NAMESPACE}" ]]; then
+  WORKFLOW_NAMESPACE=sonataflow-infra
 fi
 
 if [[ "$BROKER_TYPE" != "Kafka" && "$BROKER_TYPE" != "in-memory" ]]; then
@@ -124,7 +129,7 @@ fi
 
 echo "Updating SonataflowPlatform to set the eventing spec"
 
-oc -n <workflow-namespace> patch sonataflowplatform sonataflow-platform --type merge \
+oc -n ${WORKFLOW_NAMESPACE} patch sonataflowplatform sonataflow-platform --type merge \
    -p '
 {
   "spec": {
@@ -142,8 +147,8 @@ oc -n <workflow-namespace> patch sonataflowplatform sonataflow-platform --type m
   }'
 
 echo "Restarting Job service and data index deployments"
-oc scale deployment sonataflow-platform-jobs-service -n <workflow-namespace> --replicas=0
-oc scale deployment sonataflow-platform-data-index-service -n <workflow-namespace> --replicas=0
+oc scale deployment sonataflow-platform-jobs-service -n ${WORKFLOW_NAMESPACE} --replicas=0
+oc scale deployment sonataflow-platform-data-index-service -n ${WORKFLOW_NAMESPACE} --replicas=0
 
-oc scale deployment sonataflow-platform-jobs-service -n <workflow-namespace> --replicas=1
-oc scale deployment sonataflow-platform-data-index-service -n <workflow-namespace> --replicas=1
+oc scale deployment sonataflow-platform-jobs-service -n ${WORKFLOW_NAMESPACE} --replicas=1
+oc scale deployment sonataflow-platform-data-index-service -n ${WORKFLOW_NAMESPACE} --replicas=1
